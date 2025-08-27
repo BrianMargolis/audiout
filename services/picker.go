@@ -17,11 +17,6 @@ type Choice struct {
 	FriendlyName string
 }
 
-// Config represents the application configuration
-type Config struct {
-	FriendlyNames map[string]string `yaml:"friendly"`
-	Ignored       []string          `yaml:"ignored"`
-}
 
 // Picker handles device selection logic
 type Picker interface {
@@ -29,12 +24,12 @@ type Picker interface {
 }
 
 type picker struct {
-	config *Config
-	log    *zap.SugaredLogger
+	configService ConfigService
+	log           *zap.SugaredLogger
 }
 
-func NewPicker(config *Config, log *zap.SugaredLogger) Picker {
-	return &picker{config: config, log: log}
+func NewPicker(configService ConfigService, log *zap.SugaredLogger) Picker {
+	return &picker{configService: configService, log: log}
 }
 
 func (p *picker) PickDevice(ctx context.Context, choices []Choice, current string, toggleMode bool) (Choice, bool, error) {
@@ -80,7 +75,7 @@ func (p *picker) toggleNext(choices []Choice, current string) (Choice, bool, err
 }
 
 func (p *picker) fzfPick(ctx context.Context, choices []Choice, current string) (Choice, bool, error) {
-	currentFriendly := friendlyOf(current, p.config)
+	currentFriendly := p.configService.FriendlyName(current)
 	
 	var b strings.Builder
 	for _, c := range choices {
@@ -129,9 +124,3 @@ func (p *picker) fzfPick(ctx context.Context, choices []Choice, current string) 
 	return Choice{FriendlyName: parts[0], RealName: parts[1]}, true, nil
 }
 
-func friendlyOf(real string, config *Config) string {
-	if f, ok := config.FriendlyNames[real]; ok && f != "" {
-		return f
-	}
-	return real
-}

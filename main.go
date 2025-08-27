@@ -2,16 +2,13 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 
 	"brianmargolis.com/audiout/services"
 	"brianmargolis.com/audiout/utils"
@@ -59,15 +56,15 @@ func main() {
 	}
 	log.Debug("all dependencies present")
 
-	config, err := loadConfig(cfgPath, log)
+	configService := services.NewConfigService(log)
+	config, err := configService.Load(cfgPath)
 	if err != nil {
 		log.Errorw("config load failed (continuing with defaults)", "path", cfgPath, "err", err)
-		config = &services.Config{}
 	}
 	log.Infow("config loaded", "config", config, "toggle", toggle)
 
 	audioDeviceService := services.NewAudioDevice(log)
-	pickerService := services.NewPicker(config, log)
+	pickerService := services.NewPicker(configService, log)
 
 	currentDevice, err := audioDeviceService.Get(ctx)
 	if err != nil {
@@ -84,7 +81,7 @@ func main() {
 	log.Infow("devices found (pre-filter)", "count", len(devices))
 
 	// ----- build choices -----
-	choices := buildChoices(devices, config, log)
+	choices := configService.BuildChoices(devices)
 	if len(choices) == 0 {
 		log.Error("no selectable output devices after filtering")
 		os.Exit(1)
@@ -143,77 +140,14 @@ func constructLogger(verbose bool) (
 	return lg.Sugar(), lg.Sync, nil
 }
 
-// -------- dependencies --------
 func checkDependencies(log *zap.SugaredLogger) error {
-	if err := requireBinary("SwitchAudioSource"); err != nil {
+	if err := utils.RequireBinary("SwitchAudioSource"); err != nil {
 		return fmt.Errorf("missing dependency: SwitchAudioSource (hint: brew install switchaudio-osx): %w", err)
 	}
 	log.Debug("ok: SwitchAudioSource present")
-	if err := requireBinary("fzf"); err != nil {
+	if err := utils.RequireBinary("fzf"); err != nil {
 		return fmt.Errorf("missing dependency: fzf (hint: brew install fzf): %w", err)
 	}
 	log.Debug("ok: fzf present")
 	return nil
-}
-
-func requireBinary(name string) error {
-	_, err := exec.LookPath(name)
-	return err
-}
-
-// -------- config --------
-func loadConfig(path string, log *zap.SugaredLogger) (*services.Config, error) {
-	path = utils.ExpandPath(path)
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Infow("config not found; using defaults", "path", path)
-			return &services.Config{}, nil
-		}
-		return nil, err
-	}
-	var c services.Config
-	if err := yaml.Unmarshal(b, &c); err != nil {
-		return &services.Config{
-			FriendlyNames: map[string]string{},
-		}, err
-
-	}
-	if c.FriendlyNames == nil {
-		c.FriendlyNames = map[string]string{}
-	}
-	return &c, nil
-}
-
-// -------- config helpers --------
-
-func isIgnored(name string, config *services.Config) bool {
-	for _, n := range config.Ignored {
-		if name == n {
-			return true
-		}
-	}
-	return false
-}
-
-func friendlyOf(real string, config *services.Config) string {
-	if f, ok := config.FriendlyNames[real]; ok && f != "" {
-		return f
-	}
-	return real
-}
-
-func buildChoices(devices []string, config *services.Config, log *zap.SugaredLogger) []services.Choice {
-	var choices []services.Choice
-	for _, device := range devices {
-		if isIgnored(device, config) {
-			log.Debugw("ignored device", "name", device)
-			continue
-		}
-		choices = append(choices, services.Choice{
-			FriendlyName: friendlyOf(device, config),
-			RealName:     device,
-		})
-	}
-	return choices
 }

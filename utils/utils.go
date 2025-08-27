@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -14,4 +15,9 @@ func ExpandPath(p string) string {
 		}
 	}
 	return p
+}
+
+func RequireBinary(name string) error {
+	_, err := exec.LookPath(name)
+	return err
 }
