@@ -17,7 +17,6 @@ type Choice struct {
 	FriendlyName string
 }
 
-
 // Picker handles device selection logic
 type Picker interface {
 	PickDevice(ctx context.Context, choices []Choice, current string, toggleMode bool) (Choice, bool, error)
@@ -43,14 +42,14 @@ func (p *picker) toggleNext(choices []Choice, current string) (Choice, bool, err
 	if len(choices) == 0 {
 		return Choice{}, false, fmt.Errorf("no choices available")
 	}
-	
+
 	// Sort choices alphabetically by RealName
 	sortedChoices := make([]Choice, len(choices))
 	copy(sortedChoices, choices)
 	sort.Slice(sortedChoices, func(i, j int) bool {
 		return sortedChoices[i].RealName < sortedChoices[j].RealName
 	})
-	
+
 	// Find current device index
 	currentIdx := -1
 	for i, choice := range sortedChoices {
@@ -59,7 +58,7 @@ func (p *picker) toggleNext(choices []Choice, current string) (Choice, bool, err
 			break
 		}
 	}
-	
+
 	// Select next device (wrap around if at end)
 	var nextIdx int
 	if currentIdx == -1 {
@@ -70,13 +69,13 @@ func (p *picker) toggleNext(choices []Choice, current string) (Choice, bool, err
 		nextIdx = (currentIdx + 1) % len(sortedChoices)
 		p.log.Debugw("toggling to next device", "currentIdx", currentIdx, "nextIdx", nextIdx)
 	}
-	
+
 	return sortedChoices[nextIdx], true, nil
 }
 
 func (p *picker) fzfPick(ctx context.Context, choices []Choice, current string) (Choice, bool, error) {
 	currentFriendly := p.configService.FriendlyName(current)
-	
+
 	var b strings.Builder
 	for _, c := range choices {
 		// FRIENDLY \t REAL
@@ -123,4 +122,3 @@ func (p *picker) fzfPick(ctx context.Context, choices []Choice, current string) 
 	}
 	return Choice{FriendlyName: parts[0], RealName: parts[1]}, true, nil
 }
-

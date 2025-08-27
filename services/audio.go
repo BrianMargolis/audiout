@@ -75,4 +75,3 @@ func runCmd(ctx context.Context, name string, args ...string) (string, error) {
 	}
 	return outBuf.String(), nil
 }
-

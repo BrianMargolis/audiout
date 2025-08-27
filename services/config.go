@@ -101,4 +101,3 @@ func (s *configService) BuildChoices(devices []string) []Choice {
 	}
 	return choices
 }
-
