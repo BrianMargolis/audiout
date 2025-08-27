@@ -85,7 +85,7 @@ func (p *picker) fzfPick(ctx context.Context, choices []Choice, current string) 
 	input := b.String()
 
 	args := []string{
-		"--prompt", "🎧 Output: ",
+		"--prompt", "Output: ",
 		"--header", "Current: " + currentFriendly,
 		"--height", "40%",
 		"--reverse",
